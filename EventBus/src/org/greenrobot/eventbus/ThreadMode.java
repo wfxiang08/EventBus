@@ -28,6 +28,8 @@ public enum ThreadMode {
      * implies the least overhead because it avoids thread switching completely. Thus this is the recommended mode for
      * simple tasks that are known to complete is a very short time without requiring the main thread. Event handlers
      * using this mode must return quickly to avoid blocking the posting thread, which may be the main thread.
+     *
+     * 在哪个线程发送事件，就在哪个线程执行
      */
     POSTING,
 
@@ -35,6 +37,7 @@ public enum ThreadMode {
      * Subscriber will be called in Android's main thread (sometimes referred to as UI thread). If the posting thread is
      * the main thread, event handler methods will be called directly. Event handlers using this mode must return
      * quickly to avoid blocking the main thread.
+     * 在主线程执行
      */
     MAIN,
 

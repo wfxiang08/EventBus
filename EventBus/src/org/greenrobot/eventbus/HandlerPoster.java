@@ -20,6 +20,10 @@ import android.os.Looper;
 import android.os.Message;
 import android.os.SystemClock;
 
+//
+// 同 BackgroundPoster, HandlerPoster也是一次处理一批请求，只不过是通过: Looper来实现事件的驱动
+// 不过: Looper比较特殊是，每次只能分配很小的一个时间片段
+//
 final class HandlerPoster extends Handler {
 
     private final PendingPostQueue queue;
@@ -29,6 +33,7 @@ final class HandlerPoster extends Handler {
 
     HandlerPoster(EventBus eventBus, Looper looper, int maxMillisInsideHandleMessage) {
         super(looper);
+
         this.eventBus = eventBus;
         this.maxMillisInsideHandleMessage = maxMillisInsideHandleMessage;
         queue = new PendingPostQueue();
@@ -36,8 +41,11 @@ final class HandlerPoster extends Handler {
 
     void enqueue(Subscription subscription, Object event) {
         PendingPost pendingPost = PendingPost.obtainPendingPost(subscription, event);
+
         synchronized (this) {
             queue.enqueue(pendingPost);
+
+            // handlerActive: 表示之前的PendingPost处理完毕，
             if (!handlerActive) {
                 handlerActive = true;
                 if (!sendMessage(obtainMessage())) {
@@ -67,6 +75,7 @@ final class HandlerPoster extends Handler {
                 eventBus.invokeSubscriber(pendingPost);
                 long timeInMethod = SystemClock.uptimeMillis() - started;
                 if (timeInMethod >= maxMillisInsideHandleMessage) {
+                    // 安排到下一个Event Loop
                     if (!sendMessage(obtainMessage())) {
                         throw new EventBusException("Could not send handler message");
                     }

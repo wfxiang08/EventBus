@@ -53,6 +53,7 @@ class SubscriberMethodFinder {
     }
 
     List<SubscriberMethod> findSubscriberMethods(Class<?> subscriberClass) {
+        // 1. 缓存Reflection的结果
         List<SubscriberMethod> subscriberMethods = METHOD_CACHE.get(subscriberClass);
         if (subscriberMethods != null) {
             return subscriberMethods;
@@ -63,6 +64,8 @@ class SubscriberMethodFinder {
         } else {
             subscriberMethods = findUsingInfo(subscriberClass);
         }
+
+        // 3. 如果没有相应的方法，则报错
         if (subscriberMethods.isEmpty()) {
             throw new EventBusException("Subscriber " + subscriberClass
                     + " and its super classes have no public methods with the @Subscribe annotation");
@@ -75,8 +78,11 @@ class SubscriberMethodFinder {
     private List<SubscriberMethod> findUsingInfo(Class<?> subscriberClass) {
         FindState findState = prepareFindState();
         findState.initForSubscriber(subscriberClass);
+
         while (findState.clazz != null) {
             findState.subscriberInfo = getSubscriberInfo(findState);
+
+
             if (findState.subscriberInfo != null) {
                 SubscriberMethod[] array = findState.subscriberInfo.getSubscriberMethods();
                 for (SubscriberMethod subscriberMethod : array) {
@@ -87,6 +93,8 @@ class SubscriberMethodFinder {
             } else {
                 findUsingReflectionInSingleClass(findState);
             }
+
+            // super class
             findState.moveToSuperclass();
         }
         return getMethodsAndRelease(findState);
@@ -106,6 +114,7 @@ class SubscriberMethodFinder {
         return subscriberMethods;
     }
 
+    // 从POOL中获取一个 FindState, 如果没有找到，则返回
     private FindState prepareFindState() {
         synchronized (FIND_STATE_POOL) {
             for (int i = 0; i < POOL_SIZE; i++) {
@@ -137,9 +146,13 @@ class SubscriberMethodFinder {
         return null;
     }
 
+    //
+    // 如何通过反射来查找相关的方法呢?
+    //
     private List<SubscriberMethod> findUsingReflection(Class<?> subscriberClass) {
-        FindState findState = prepareFindState();
+        FindState findState = prepareFindState(); // 从POOL中寻找一个FindState
         findState.initForSubscriber(subscriberClass);
+
         while (findState.clazz != null) {
             findUsingReflectionInSingleClass(findState);
             findState.moveToSuperclass();
@@ -147,7 +160,9 @@ class SubscriberMethodFinder {
         return getMethodsAndRelease(findState);
     }
 
+    // 通过反射，查找带有: Subscribe annotation的Method
     private void findUsingReflectionInSingleClass(FindState findState) {
+        // 1. 获取Methods
         Method[] methods;
         try {
             // This is faster than getMethods, especially when subscribers are fat classes like Activities
@@ -157,26 +172,36 @@ class SubscriberMethodFinder {
             methods = findState.clazz.getMethods();
             findState.skipSuperClasses = true;
         }
+
+
         for (Method method : methods) {
             int modifiers = method.getModifiers();
+            // 2. 相关的Method需要是public, 并且不是: static, abstract等
             if ((modifiers & Modifier.PUBLIC) != 0 && (modifiers & MODIFIERS_IGNORE) == 0) {
                 Class<?>[] parameterTypes = method.getParameterTypes();
+
+                // 3. 要求参数个数为1
                 if (parameterTypes.length == 1) {
+                    // 3.1 获取Annotation
                     Subscribe subscribeAnnotation = method.getAnnotation(Subscribe.class);
                     if (subscribeAnnotation != null) {
                         Class<?> eventType = parameterTypes[0];
+
                         if (findState.checkAdd(method, eventType)) {
                             ThreadMode threadMode = subscribeAnnotation.threadMode();
+                            // 3.1.1 添加: subscriberMethods
                             findState.subscriberMethods.add(new SubscriberMethod(method, eventType, threadMode,
                                     subscribeAnnotation.priority(), subscribeAnnotation.sticky()));
                         }
                     }
                 } else if (strictMethodVerification && method.isAnnotationPresent(Subscribe.class)) {
+                    // 3.2 报错
                     String methodName = method.getDeclaringClass().getName() + "." + method.getName();
                     throw new EventBusException("@Subscribe method " + methodName +
                             "must have exactly 1 parameter but has " + parameterTypes.length);
                 }
             } else if (strictMethodVerification && method.isAnnotationPresent(Subscribe.class)) {
+                // 3.2 报错
                 String methodName = method.getDeclaringClass().getName() + "." + method.getName();
                 throw new EventBusException(methodName +
                         " is a illegal @Subscribe method: must be public, non-static, and non-abstract");
@@ -257,7 +282,9 @@ class SubscriberMethodFinder {
             if (skipSuperClasses) {
                 clazz = null;
             } else {
+                // 通过: superClass 往上遍历
                 clazz = clazz.getSuperclass();
+
                 String clazzName = clazz.getName();
                 /** Skip system classes, this just degrades performance. */
                 if (clazzName.startsWith("java.") || clazzName.startsWith("javax.") || clazzName.startsWith("android.")) {

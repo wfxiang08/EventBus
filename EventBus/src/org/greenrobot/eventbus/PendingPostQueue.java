@@ -16,6 +16,7 @@
 
 package org.greenrobot.eventbus;
 
+// 管理 PendingPost
 final class PendingPostQueue {
     private PendingPost head;
     private PendingPost tail;
@@ -24,6 +25,9 @@ final class PendingPostQueue {
         if (pendingPost == null) {
             throw new NullPointerException("null cannot be enqueued");
         }
+
+        // head ---> tail --->
+        // 如果head == null, tail == null
         if (tail != null) {
             tail.next = pendingPost;
             tail = pendingPost;
@@ -32,13 +36,18 @@ final class PendingPostQueue {
         } else {
             throw new IllegalStateException("Head present, but no tail");
         }
+
+        // PendingPostQueue 同时也充当一个Lock
         notifyAll();
     }
 
+    // PendingPost从tail进去，从head出来
     synchronized PendingPost poll() {
         PendingPost pendingPost = head;
         if (head != null) {
             head = head.next;
+
+            // 保持状态一致性性
             if (head == null) {
                 tail = null;
             }
@@ -46,6 +55,7 @@ final class PendingPostQueue {
         return pendingPost;
     }
 
+    // 带有等待的poll
     synchronized PendingPost poll(int maxMillisToWait) throws InterruptedException {
         if (head == null) {
             wait(maxMillisToWait);

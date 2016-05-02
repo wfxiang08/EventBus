@@ -23,10 +23,14 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+
+// Retention的用法: java, class, runtime
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.METHOD})
 public @interface Subscribe {
+
+    // 工作模式:
     ThreadMode threadMode() default ThreadMode.POSTING;
 
     /**
@@ -35,10 +39,12 @@ public @interface Subscribe {
      */
     boolean sticky() default false;
 
-    /** Subscriber priority to influence the order of event delivery.
+    /**
+     * Subscriber priority to influence the order of event delivery.
      * Within the same delivery thread ({@link ThreadMode}), higher priority subscribers will receive events before
      * others with a lower priority. The default priority is 0. Note: the priority does *NOT* affect the order of
-     * delivery among subscribers with different {@link ThreadMode}s! */
+     * delivery among subscribers with different {@link ThreadMode}s!
+     */
     int priority() default 0;
 }
 

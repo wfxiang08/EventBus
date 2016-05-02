@@ -18,7 +18,7 @@ package org.greenrobot.eventbus;
 
 /**
  * Posts events in background.
- * 
+ *
  * @author Markus
  */
 class AsyncPoster implements Runnable {
@@ -33,14 +33,20 @@ class AsyncPoster implements Runnable {
 
     public void enqueue(Subscription subscription, Object event) {
         PendingPost pendingPost = PendingPost.obtainPendingPost(subscription, event);
+
+        // 异步执行动作
         queue.enqueue(pendingPost);
+
+        // 通过: eventBus的 thread pool来执行动作
+        // 每调度一次，queue中的post就消费一个
+        // 和BackgroundPoster的不一样的地方: 后者一次执行一批请求
         eventBus.getExecutorService().execute(this);
     }
 
     @Override
     public void run() {
         PendingPost pendingPost = queue.poll();
-        if(pendingPost == null) {
+        if (pendingPost == null) {
             throw new IllegalStateException("No pending post available");
         }
         eventBus.invokeSubscriber(pendingPost);

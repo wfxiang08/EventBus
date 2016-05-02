@@ -18,6 +18,9 @@ package org.greenrobot.eventbus;
 import java.util.ArrayList;
 import java.util.List;
 
+//
+// PendingPost&PendingPost的对象池
+//
 final class PendingPost {
     private final static List<PendingPost> pendingPostPool = new ArrayList<PendingPost>();
 
